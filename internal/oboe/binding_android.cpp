@@ -510,6 +510,14 @@ oboe::DataCallbackResult Stream::onAudioReady(oboe::AudioStream *oboe_stream,
 
 Stream::Stream() = default;
 
+// LoopRead fills fifo_ from Go for as long as the thread lives. It is the only
+// writer of the fifo, and onAudioReady is its only reader.
+//
+// A read calls into Go, which mixes the players' samples into tmp_ and takes
+// every player's lock, so a read must not run under mutex_.
+//
+// The fifo is shared with the real-time callback without a lock, so this
+// thread only writes the frames it read and the callback only takes them.
 void Stream::LoopRead() {
   for (;;) {
     // The queue is kept at the larger of the target and two of the largest
@@ -537,6 +545,11 @@ void Stream::LoopRead() {
   }
 }
 
+// LoopStartRetry attempts a deferred start until one succeeds or the failure
+// is one that no attempt recovers from.
+//
+// It waits on cond_ for a deferral to begin and for the delay DeferStartLocked
+// set, and it runs the attempt under mutex_ like every other start.
 void Stream::LoopStartRetry() {
   for (;;) {
     Status status;
