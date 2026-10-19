@@ -15,7 +15,10 @@
 // Package mathutil provides integer arithmetic helpers.
 package mathutil
 
-import "math/bits"
+import (
+	"math"
+	"math/bits"
+)
 
 // MulDiv returns x * mul / div truncated toward zero.
 // It returns (0, false) if div is zero or the result does not fit in int64.
@@ -41,6 +44,10 @@ func MulDiv(x, mul, div int64) (int64, bool) {
 	if negative {
 		if q > 1<<63 {
 			return 0, false
+		}
+		if q == 1<<63 {
+			// The quotient does not fit in int64, but its negation does.
+			return math.MinInt64, true
 		}
 		return -int64(q), true
 	}
