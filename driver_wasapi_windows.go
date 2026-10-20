@@ -234,6 +234,10 @@ func (c *wasapiContext) run() {
 	// This goroutine owns the resources across all recovery attempts. The render
 	// loop has returned before cleanup can close the event or release interfaces.
 	defer c.close()
+	// This context is dead for good, so the mux must not read the players'
+	// sources any more. The mux is shared with the WinMM fallback only while
+	// the context is being created, so it can be stopped here.
+	defer c.mux.Stop()
 
 	for {
 		err := c.loop()
