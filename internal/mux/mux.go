@@ -156,6 +156,13 @@ func (m *Mux) removePlayer(player *playerImpl) {
 }
 
 // Stop stops the Mux from reading the players' sources.
+//
+// A Mux can be shared by more than one backend while a context is being
+// created: on Windows the WASAPI backend and the WinMM fallback use the same
+// Mux, and the WinMM backend takes it over when the WASAPI one fails. Stop
+// must therefore not be called on the path where a backend gives up during
+// the initialization, or the backend that takes over would get a Mux that
+// reads nothing.
 func (m *Mux) Stop() {
 	m.cond.L.Lock()
 	defer m.cond.L.Unlock()

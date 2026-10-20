@@ -51,6 +51,8 @@ func newContext(sampleRate int, channelCount int, format mux.Format, bufferSizeI
 	go func() {
 		defer close(ctx.ready)
 
+		// The backends share one mux, so a backend that gives up here must not
+		// stop it: the next backend takes it over.
 		xc, err0 := newWASAPIContext(sampleRate, channelCount, ctx.mux, bufferSizeInBytes)
 		if err0 == nil {
 			ctx.wasapiContext = xc
