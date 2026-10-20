@@ -204,10 +204,11 @@ private:
   std::vector<float> tmp_;
   int read_frames_ = 0;
 
-  // fill_target_frames_ is how many frames LoopRead keeps queued in fifo_ for
-  // the stream playing, and min_wait_us_ the shortest it sleeps between reads,
-  // in microseconds. They are set as each stream opens, as devices differ: a
-  // Bluetooth headset's bursts can be twenty times a phone speaker's.
+  // fill_target_frames_ is how many frames LoopRead tries to keep queued in
+  // fifo_ for the stream playing, and min_wait_us_ the shortest it sleeps
+  // before it looks at the queue again, in microseconds. They are set as each
+  // stream opens, as devices differ: a Bluetooth headset's bursts can be
+  // twenty times a phone speaker's.
   // max_callback_ is the most frames a callback has asked for since. LoopRead
   // keeps two of those and a read queued, for a device whose callbacks outgrow
   // its bursts.
@@ -279,14 +280,17 @@ void Stream::PrepareBuffersLocked() {
 }
 
 // ConfigureRefillLocked sets how LoopRead refills fifo_ for the stream just
-// opened: how much it keeps queued and how long it sleeps at least between
-// reads, and it forgets the largest callback seen so far.
+// opened: how much it keeps queued and how long it waits at least before it
+// looks at the queue again, and it forgets the largest callback seen so far.
+// The reads themselves are spaced by the pacer in the Go binding.
 void Stream::ConfigureRefillLocked() {
   int burst = stream_->getFramesPerBurst();
-  // Before each read, at least two bursts stay queued, so that a whole burst
-  // remains after any callback, and at least 25 ms: about three 384-frame
+  // The queue is kept at two bursts, or at least 25 ms: about three 384-frame
   // OpenSL ES buffers at 48 kHz, the queue that stopped occasional noises on a
   // low-end device where two were not enough (hajimehoshi/ebiten@4276e296).
+  // A read is made once the queue has dropped to that level, and the read
+  // fills it up to the level plus one read, so that a whole burst remains
+  // after any callback.
   int low = std::max(sample_rate_ / 40, 2 * burst);
   // The fill target is that and one read on top.
   fill_target_frames_.store(low + read_frames_);
